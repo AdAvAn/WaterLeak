@@ -24,7 +24,7 @@ from LCD.Screens.HeaterPowerSwithScreen import HeaterPowerSwithScreen
 from LCD.Screens.StartingScreen import StartingScreen
 from LCD.Screens.AlarmScreen import AlarmScreen
 from LCD.Screens.ProgressScreen import ProgressScreen
-
+from LCD.Screens.ErrorScreen import ErrorScreen
 
 class Display:
 
@@ -169,3 +169,13 @@ class Display:
         self.lcd.reset_brightness_to_default()
        
 
+    #MARK: Error screen
+    def show_error_screen(self, error_code, error_text=None):
+        from LCD.Screens.ErrorScreen import ErrorScreen
+        self.reset_brightness()
+        error_screen = ErrorScreen(self.lcd, error_code, error_text)
+        self._screens = []
+        self._screens.append(error_screen)
+        self.stop()
+        error_screen.present()
+        gc.collect()

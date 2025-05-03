@@ -7,6 +7,3 @@ class Buzzers(Singleton):
         if not hasattr(self, 'alarm'): 
             self.alarm = AlarmBuzzer()
             self.control = ControlBuzzer()
-    
-    def play_started_app(self):
-        self.control.play_started_app()

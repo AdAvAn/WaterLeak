@@ -5,6 +5,7 @@ WIFI_PASSWORD:str = 'Kustik2011'
 
 # NTP Сервер
 NTP_SERVER:str = 'ua.pool.ntp.org'
+
 # Смещение часового пояса в часах (например, UTC+3 для Украины)
 TIME_ZONE_OFFSET:int = 3
 
@@ -44,10 +45,6 @@ SCL_PIN = 19
 SDA_PIN = 18
 
 # HEATER
-# Порт измерителя нагрузки водонаревателя
-LOAD_HEATER_PIN = 28
-# Частота обновления датчика тока нагревателя в секундах
-LOAD_HEATER_POLLING_TIME = 5
 # Порт включения / выключения водонагревателя
 POWER_HEATER_PIN = 11
 
