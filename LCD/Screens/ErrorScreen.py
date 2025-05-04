@@ -6,14 +6,14 @@ from .Screen import Screen
 
 class ErrorScreen(Screen):
     
-    def __init__(self, lcd: WSLCD1602RGB, error_code: str, error_text: str = None):
+    def __init__(self, lcd: WSLCD1602RGB, error_code: str, error_text = None):
         self.error_code = error_code
         self.error_text = error_text
         super().__init__(
             lcd = lcd, 
             screen_name = "ErrorScreen",
             device_name = DeviceNames.LCD_DEVICE_KEY, 
-            screen_title = f"ERR: {error_code}",
+            screen_title = f"Error: {error_code}",
             color = Colors.RED
         )
 

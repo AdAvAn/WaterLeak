@@ -16,10 +16,10 @@ PRESENTED_SCREEN_TIME_SEC:int = 3
 LCD_NORMAL_BRIGHTNESS:int = 100
 
 #Яркость экрана в режими сна в процентах
-LCD_SLEEP_MODE_BRIGHTNESS:int = 2
+LCD_SLEEP_MODE_BRIGHTNESS:int = 1
 
 #Врем в секунад после которго вклчиться режим сна
-SLEEP_MODE_MODE_TIMEOUNT:int = 300
+SLEEP_MODE_MODE_TIMEOUNT:int = 100
 
 
 # BUZZERS

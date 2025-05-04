@@ -29,7 +29,7 @@ class Progress:
         self._display.remove_screen(progress_screan)
         self._display.buzzers.control.play_done()
         if self._display.is_exist_screens() == False:
-            self._display.show_default_screens(device_name) # type: ignore
+            self._display.show_carusel(device_name) # type: ignore
 
     
      

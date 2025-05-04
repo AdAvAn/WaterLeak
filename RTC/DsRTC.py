@@ -8,6 +8,7 @@ from Helpers.Singleton import Singleton
 from Logging.AppLogger import AppLogger
 from .Driver.DS3231 import DS3231
 from Buzzers.Buzzers import Buzzers
+from Helpers.WiFiManager import WiFiManager
 
 class DsRTC(Singleton):
 
@@ -64,14 +65,17 @@ class DsRTC(Singleton):
 
     async def _set_time_from_ntp(self) -> None:
         try:
-            await self._connect_to_wifi()
-            tmn = await self._get_time_from_ntp()
-            self._ds.datetime(tmn)
-            self._set_time_from_ds() 
-            self._logger.info(f'DSRTC: DsRTC time updated from NTP: {self.get_datetime_iso8601()}')
+            wifiManager = WiFiManager()
+            if await wifiManager.connect_wifi():
+                tmn = await self._get_time_from_ntp()
+                self._ds.datetime(tmn)
+                self._set_time_from_ds() 
+                self._logger.info(f'DSRTC: Time updated from NTP: {self.get_datetime_iso8601()}')
+            else:
+                self._logger.error('DSRTC: Failed to connect to WiFi for NTP sync')
         except Exception as e:
-            self._logger.error(f'DSRTC: Failed to set DsRTC time from NTP Time. EXCEPTION: {e}')
-            return None  
+            self._logger.error(f'DSRTC: Failed to set time from NTP. EXCEPTION: {e}')
+            return None
        
     # Get NTP time and adjust for time zone
     async def _get_time_from_ntp(self) ->tuple:
@@ -81,17 +85,6 @@ class DsRTC(Singleton):
         except Exception as e:
             raise ValueError(f"DSRTC: Failed to get time from NTP: {Settings.NTP_SERVER}. EXCEPTION: {e}")
         
-    # Connect to WiFi
-    async def _connect_to_wifi(self, timeout=5):
-        wlan = network.WLAN(network.STA_IF)
-        wlan.active(True)
-        if not wlan.isconnected():
-            wlan.connect(Settings.WIFI_SSID, Settings.WIFI_PASSWORD)
-            start_time = time.time()
-            while not wlan.isconnected():
-                if time.time() - start_time > timeout:
-                    raise ConnectionError('DSRTC: Wi-Fi connection timed out.')
-                await asyncio.sleep(1)
                 
     def alarm_triggered(self, pin):
         self._logger.info(f'DSRTC: Timer ALARM tgriggered')
