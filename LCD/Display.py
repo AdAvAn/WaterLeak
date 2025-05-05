@@ -59,32 +59,36 @@ class Display:
         self.stop()
         self.start()
 
-    def get_screen_at_device_name(self, device_name: str):
-        return next((s for s in self._screens if s.get_device_name() == device_name), None)
-
-    def remove_screen(self, r_screen: Screen) -> bool:
-        try:
-            self._screens.remove(r_screen)
-            print("DISPLAY: Remove screen, exist more: ", self.is_exist_screens())
-            return True
-        except ValueError:
-            return False
+    def get_screen_at_device_name(self, device_name):
+        for screen in self._screens:
+            if screen.get_device_name() == device_name:
+                return screen
+        return None
+    
+    def remove_screen(self, r_screan:Screen) -> bool:
+        for screen in self._screens:
+            if screen == r_screan:
+                self._screens.remove(screen)
+                self.logger.info(f"DISPLAY: Remove screen, exist more: {self.is_exist_screens()}")
+                return True
+        return False
 
     def is_exist_screens(self) -> bool:
-        return bool(self._screens)
-
+        return True if self.gen_number_of_screens() > 0 else False
+    
     def gen_number_of_screens(self) -> int:
         return len(self._screens)
 
-    def show_alarm(self, title: str, text=None):
+    # Alarm screens
+    def show_alarm(self, title:str, text = None):
         self.reset_brightness()
         self._can_turn_sleep_mode = False
         alarm_screen = AlarmScreen(self.lcd)
         alarm_screen.update_alarm(title, text)
-        self._screens.clear()
+        self._screens = []
         self._screens.append(alarm_screen)
         self.stop()
-        self._presented_screen = 0
+        self._presented_screen = len(self._screens)
         alarm_screen.present()
         gc.collect()
 
@@ -93,16 +97,16 @@ class Display:
         self.restart()
         gc.collect()
 
-    def show_progress(self, title, device_name, progress_value):
-        self.progress.update_progress(title, device_name, progress_value)
+    def show_progress(self, title:str, device_name:str,  progress:float):
+        self.progress.update_progress(title, device_name,  progress)
 
     def add_new_progress_screens(self, screen: Screen):
         self.reset_brightness()
         self._can_turn_sleep_mode = False
         self._presented_screen_time_sec = 1
-        self._screens = [s for s in self._screens if s.get_screen_name() == DisplayNames.PROGRESS_SCREEN_NAME]
+        self._screens = [screen for screen in self._screens if screen.get_screen_name() is DisplayNames.PROGRESS_SCREEN_NAME]
         self._screens.append(screen)
-        self._presented_screen = len(self._screens) - 1
+        self._presented_screen = len(self._screens)-1
         self.restart()
 
     def show_carusel(self, device_name=None):
@@ -118,24 +122,23 @@ class Display:
             HeaterPowerSwithScreen(self.lcd, self.states),
             WaterHeaterScreen(self.lcd, self.states),
         ]
-        if device_name:
+        if device_name: 
             for i, screen in enumerate(self._screens):
                 if screen.get_device_name() == device_name:
                     self._presented_screen = i
-                    break
-        else:
-            self._presented_screen = 0
-
+                    return
+        self._presented_screen = 0
         self._can_turn_sleep_mode = True
-        self._presentation_mode_screens_timeout = 0
+        self._presentation_mode_screens_timout = 0
         self.restart()
         gc.collect()
 
+    #MARK: Starting screens        
     def show_starting_screen(self):
         loading = StartingScreen(self.lcd)
-        self._screens = [s for s in self._screens if isinstance(s, StartingScreen)]
+        self._screens = [screen for screen in self._screens if issubclass(type(screen), StartingScreen)]
         loading.present()
-        gc.collect()
+
 
     async def _display_loop(self):
         if not self._screens:
