@@ -189,37 +189,54 @@ class SimpleServer:
             
             <div class="card">
                 <h2>Hot Water Valve</h2>
-                <p>State: <span class="{self.states.get_valve_state('hot_water_valve')}">{self.states.get_valve_state('hot_water_valve')}</span></p>
+                <p>Valve State: <span class="{self.states.get_valve_state('hot_water_valve')}">{self.states.get_valve_state('hot_water_valve')}</span></p>
+                <p>State changed: {self.states.get_valve_action_time('hot_water_valve')}</p>
                 <button onclick="fetch('/api/control?action=open_valve&device=hot_water_valve', {{method: 'POST'}}).then(() => location.reload())">Open</button>
                 <button onclick="fetch('/api/control?action=close_valve&device=hot_water_valve', {{method: 'POST'}}).then(() => location.reload())">Close</button>
             </div>
             
             <div class="card">
                 <h2>Cold Water Valve</h2>
-                <p>State: <span class="{self.states.get_valve_state('cold_water_valve')}">{self.states.get_valve_state('cold_water_valve')}</span></p>
+                <p>Valve State: <span class="{self.states.get_valve_state('cold_water_valve')}">{self.states.get_valve_state('cold_water_valve')}</span></p>
+                <p>State changed: {self.states.get_valve_action_time('cold_water_valve')}</p>
                 <button onclick="fetch('/api/control?action=open_valve&device=cold_water_valve', {{method: 'POST'}}).then(() => location.reload())">Open</button>
                 <button onclick="fetch('/api/control?action=close_valve&device=cold_water_valve', {{method: 'POST'}}).then(() => location.reload())">Close</button>
             </div>
             
             <div class="card">
-                <h2>Leak Sensors</h2>
-                <p>Zone 1: <span class="{self.states.get_leak_sensor_state('zone_1')}">{self.states.get_leak_sensor_state('zone_1')}</span></p>
-                <p>Zone 2: <span class="{self.states.get_leak_sensor_state('zone_2')}">{self.states.get_leak_sensor_state('zone_2')}</span></p>
+                <h2>Leak Sensors Toilet</h2>
+                <p>Leak State: <span class="{self.states.get_leak_sensor_state('zone_1')}">{self.states.get_leak_sensor_state('zone_1')}</span></p>
+                <p>Last leak detected: {self.states.get_leak_sensor_action_time('zone_1')}</p>
+                <button onclick="fetch('/api/control?action=clear_alarm', {{method: 'POST'}}).then(() => location.reload())">Clear Alarm</button>
+            </div>
+
+            <div class="card">
+                <h2>Leak Sensors Bathroom</h2>
+                <p>Leak State: <span class="{self.states.get_leak_sensor_state('zone_2')}">{self.states.get_leak_sensor_state('zone_1')}</span></p>
+                <p>Last leak detected: {self.states.get_leak_sensor_action_time('zone_2')}</p>
                 <button onclick="fetch('/api/control?action=clear_alarm', {{method: 'POST'}}).then(() => location.reload())">Clear Alarm</button>
             </div>
             
             <div class="card">
                 <h2>Heater</h2>
-                <p>State: <span class="{self.states.get_heater_state('heater_power_swith')}">{self.states.get_heater_state('heater_power_swith')}</span></p>
+                <p>Heater state: <span class="{self.states.get_heater_state('heater_power_swith')}">{self.states.get_heater_state('heater_power_swith')}</span></p>
+                <p>State changed: {self.states.get_heater_action_time('heater_power_swith')}</p>
                 <button onclick="fetch('/api/control?action=toggle_heater&device=heater_power_swith', {{method: 'POST'}}).then(() => location.reload())">Toggle Power</button>
             </div>
             
             <div class="card">
-                <h2>Temperatures</h2>
-                <p>Hot Water: {hot_water_temp or '--'} &deg;C <span class="trend-{'up' if hot_water_trend == '↑' else 'down' if hot_water_trend == '↓' else 'same'}">{hot_water_trend}</span></p>
-                <p>Heater: {heater_temp or '--'} &deg;C <span class="trend-{'up' if heater_trend == '↑' else 'down' if heater_trend == '↓' else 'same'}">{heater_trend}</span></p>
+                <h2>Hot Water line Temperature</h2>
+                <p>Current temp: {hot_water_temp or '--'} &deg;C <span class="trend-{'up' if hot_water_trend == '↑' else 'down' if hot_water_trend == '↓' else 'same'}">{hot_water_trend}</span></p>
+                <p>State changed: {self.states.get_temperature_action_time('hot_water_temp')}</p>
             </div>
             
+            <div class="card">
+                <h2>Heater Temperature</h2>
+                <p>Current temp: {heater_temp or '--'} &deg;C <span class="trend-{'up' if heater_trend == '↑' else 'down' if heater_trend == '↓' else 'same'}">{heater_trend}</span></p>
+                <p>State changed: {self.states.get_temperature_action_time('heater_temp')}</p>
+            </div>
+
+
             <div class="card">
                 <h2>System Information</h2>
                 <div class="system-info">

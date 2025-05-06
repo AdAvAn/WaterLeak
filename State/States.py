@@ -59,6 +59,18 @@ class States:
     def get_heater_preview_state(self, device_name:str):
         return self._get_preview_device_state(DeviceNames.HEATER_SECTION_KEY, device_name)
     
+    # MARK: GET Changed time
+    def get_valve_action_time(self, device_name: str) -> str:
+        return self._get_device_action_time(DeviceNames.VALVE_SECTION_KEY, device_name)
+
+    def get_leak_sensor_action_time(self, device_name: str) -> str:
+        return self._get_device_action_time(DeviceNames.LEAK_SECTION_KEY, device_name)
+
+    def get_temperature_action_time(self, device_name: str) -> str:
+        return self._get_device_action_time(DeviceNames.TEMP_SECTION_KEY, device_name)
+
+    def get_heater_action_time(self, device_name: str) -> str:
+        return self._get_device_action_time(DeviceNames.HEATER_SECTION_KEY, device_name)
 
     # MARK: Helpers
 
@@ -91,6 +103,34 @@ class States:
         except Exception as e:
             self.logger.error(f"STATES: Failed to get device {device_type} state for {device_name}. Error: {e}")
             return None
+        
+    # MARK: GET Changed time helper
+    def _get_device_action_time(self, device_type: str, device_name: str) -> str:
+        """
+        Get the timestamp of the last state change for the specified device,
+        formatted as dd.mm.yy HH:mm.
+        """
+        try:
+            device = self.states.get(device_type, {}).get(device_name)
+            if device is None:
+                self.logger.error(f"STATES: Device {device_name} not found in section {device_type} when getting action time")
+                return "Unknow"    
+
+            iso = device.get_data().get(DeviceNames.LAST_CHANGED_KEY)
+            if not iso:
+                return "Unknow"    
+
+            # Parse ISO datetime string "YYYY-MM-DDTHH:MM:SS"
+            # and reformat to "dd.mm.yy HH:mm"
+            day   = iso[8:10]
+            month = iso[5:7]
+            year  = iso[2:4]
+            time_ = iso[11:16]  # "HH:MM"
+
+            return f"{day}.{month}.{year} {time_}"
+        except Exception as e:
+            self.logger.error(f"STATES: Failed to get action time for {device_name} in {device_type}. Error: {e}")
+            return "Unknow"    
 
 
     def _load_states_from_file(self):
@@ -130,7 +170,7 @@ class States:
         except Exception as e:
             data = {}
             
-        # Если данных по устройствам нет, создаем пустые записи
+       # If the devices are not there, then the short version will be published
         if device_type not in data:
             data[device_type] = {}
 
