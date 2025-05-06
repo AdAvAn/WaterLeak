@@ -13,7 +13,7 @@ class ValvePort:
         self.device_name = device_name
         self.state = state
         self.operation_time_left: int = 0 
-        self.operating_time  = Settings.VALVES_OPERAION_TIME
+        self.operating_time  = Settings.VALVES_OPERATION_TIME
         self.progress_observers = [] 
         self.logger = AppLogger()
 
@@ -24,7 +24,13 @@ class ValvePort:
         self.progress_observers.append(observer_fn)
 
     def stop(self):
-        self._stop_task()
+        if self._task is not None:
+            try:
+                self._task.cancel() 
+                self.logger.info(f"VALVE: Task for valve '{self.device_name}' canceled")
+            except Exception as e:
+                self.logger.error(f"VALVE: Error canceling task for valve '{self.device_name}': {e}")
+        self._task = None
         self.stop_valve()
 
     def clear_task(self):
@@ -37,7 +43,7 @@ class ValvePort:
         self.operation_time_left -= 1
 
     def reset_progress(self) -> None:
-        self.operation_time_left = Settings.VALVES_OPERAION_TIME
+        self.operation_time_left = Settings.VALVES_OPERATION_TIME
 
     def _stop_task(self) -> None:
         if self._task != None:

@@ -51,24 +51,24 @@ class ControlBuzzer:
             self._task = None
        
     async def _start_tone(self):
-        await self._play_tone(self.do5, 0.2)  # До (C)
-        await self._play_tone(self.mi5, 0.2)  # Ми (E)
-        await self._play_tone(self.sol5, 0.2)  # Соль (G)
+        await self._play_tone(self.do5, 0.2)  #  (C)
+        await self._play_tone(self.mi5, 0.2)  #  (E)
+        await self._play_tone(self.sol5, 0.2)  #  (G)
 
     async def _error_tone(self):
-        await self._play_tone(self.la5, 0.2)  # Ля (A)
+        await self._play_tone(self.la5, 0.2)  #  (A)
         await asyncio.sleep(0.2)
-        await self._play_tone(self.la5, 0.2)  # Ля (A)
+        await self._play_tone(self.la5, 0.2)  #  (A)
 
     async def _confirm_tone(self):
-        await self._play_tone(self.la5, 0.2)  # Ля (A)
+        await self._play_tone(self.la5, 0.2)  #  (A)
 
     async def _done_tone(self):
         await self._play_tone(self.lad5, 0.5) 
 
     async def _play_tone(self, frequency, duration):
         self.pin.freq(frequency)
-        self.pin.duty_u16(int(65536*0.1)) # Установка громкости
+        self.pin.duty_u16(int(65536*0.1))
         await asyncio.sleep(duration)
         self.pin.duty_u16(0)
 

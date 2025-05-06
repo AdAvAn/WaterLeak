@@ -143,6 +143,9 @@ class SimpleServer:
         hot_water_trend = get_trend(hot_water_temp, hot_water_prev)
         heater_trend = get_trend(heater_temp, heater_prev)
         
+        # Get system information
+        system_info = self.get_system_info()
+        
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -162,6 +165,22 @@ class SimpleServer:
                 .trend-up {{ color: red; }}
                 .trend-down {{ color: blue; }}
                 .trend-same {{ color: gray; }}
+                .progress-bar {{ 
+                    height: 20px; 
+                    background-color: #e0e0e0; 
+                    border-radius: 5px; 
+                    margin-top: 5px; 
+                }}
+                .progress {{ 
+                    height: 100%; 
+                    background-color: #4CAF50; 
+                    border-radius: 5px; 
+                    text-align: center; 
+                    line-height: 20px; 
+                    color: white; 
+                }}
+                .system-info {{ display: flex; flex-wrap: wrap; gap: 10px; }}
+                .system-box {{ flex: 1; min-width: 150px; }}
             </style>
         </head>
         <body>
@@ -201,6 +220,38 @@ class SimpleServer:
                 <p>Heater: {heater_temp or '--'} &deg;C <span class="trend-{'up' if heater_trend == '↑' else 'down' if heater_trend == '↓' else 'same'}">{heater_trend}</span></p>
             </div>
             
+            <div class="card">
+                <h2>System Information</h2>
+                <div class="system-info">
+                    <div class="system-box">
+                        <h3>Memory</h3>
+                        <p>Used: {system_info["memory"]["used"] // 1024} KB</p>
+                        <p>Free: {system_info["memory"]["free"] // 1024} KB</p>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: {system_info["memory"]["percent_used"]}%">
+                                {system_info["memory"]["percent_used"]}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="system-box">
+                        <h3>CPU</h3>
+                        <p>Temperature: {system_info["cpu_temp"]} &deg;C</p>
+                    </div>
+                    
+                    <div class="system-box">
+                        <h3>Storage</h3>
+                        <p>Used: {system_info["filesystem"]["used"] // 1024 if not isinstance(system_info["filesystem"]["used"], str) else "N/A"} KB</p>
+                        <p>Free: {system_info["filesystem"]["free"] // 1024 if not isinstance(system_info["filesystem"]["free"], str) else "N/A"} KB</p>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: {system_info["filesystem"]["percent_used"] if not isinstance(system_info["filesystem"]["percent_used"], str) else 0}%">
+                                {system_info["filesystem"]["percent_used"] if not isinstance(system_info["filesystem"]["percent_used"], str) else "N/A"}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <script>
                 setTimeout(() => location.reload(), 5000);
             </script>
@@ -208,6 +259,7 @@ class SimpleServer:
         </html>
         """
         self.send_response(client, 200, "OK", html)
+
 
     def handle_status(self, client):
         status = {
@@ -224,10 +276,11 @@ class SimpleServer:
             "temperature": {
                 "hot_water": self.states.get_temperature('hot_water_temp'),
                 "heater": self.states.get_temperature('heater_temp')
-            }
+            },
+            "system": self.get_system_info()
         }
         self.send_response(client, 200, "OK", json.dumps(status), "application/json")
-    
+        
     def handle_control(self, client, params):
         action = params.get('action')
         device = params.get('device')
@@ -256,3 +309,49 @@ class SimpleServer:
         except Exception as e:
             self.logger.error(f"SERVER: Control error: {e}")
             self.send_response(client, 500, "Internal Server Error", json.dumps({"error": str(e)}), "application/json")
+            
+    def get_system_info(self):
+        import gc
+        import machine
+        import os
+        import utime
+        
+        # Get memory info
+        mem_free = gc.mem_free()
+        mem_alloc = gc.mem_alloc()
+        total_mem = mem_free + mem_alloc
+        
+        # Get CPU temperature (only available on Pico)
+        try:
+            cpu_temp = machine.ADC(4).read_u16() * 3.3 / 65535
+            # Convert to celsius
+            cpu_temp = 27 - (cpu_temp - 0.706) / 0.001721
+            cpu_temp = round(cpu_temp, 1)
+        except:
+            cpu_temp = "N/A"
+        
+        # Get filesystem info
+        try:
+            fs_stat = os.statvfs('/')
+            fs_size = fs_stat[0] * fs_stat[2]  # block size * total blocks
+            fs_free = fs_stat[0] * fs_stat[3]  # block size * free blocks
+            fs_used = fs_size - fs_free
+            fs_percent = round((fs_used / fs_size) * 100, 1)
+        except:
+            fs_size = fs_free = fs_used = fs_percent = "N/A"
+        
+        return {
+            "memory": {
+                "free": mem_free,
+                "used": mem_alloc,
+                "total": total_mem,
+                "percent_used": round((mem_alloc / total_mem) * 100, 1)
+            },
+            "cpu_temp": cpu_temp,
+            "filesystem": {
+                "total": fs_size,
+                "free": fs_free,
+                "used": fs_used,
+                "percent_used": fs_percent
+            }
+        }

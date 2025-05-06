@@ -17,7 +17,7 @@ class DsRTC(Singleton):
             self._logger = AppLogger()
             self._buzzer = Buzzers()
             self._action_handler = None
-            self._ds = DS3231(I2C(id=1, sda=Pin(Settings.SDA_PIN), scl=Pin(Settings.SCL_PIN), freq=400000))
+            self._ds = DS3231(I2C(1, sda=Pin(Settings.SDA_PIN), scl=Pin(Settings.SCL_PIN), freq=400000))
             self._alarm_pin = Pin(Settings.DSDTC_ALARM_PIN, Pin.IN)
             self._alarm_pin.irq(trigger=Pin.IRQ_FALLING, handler=self.alarm_triggered)
             self._set_time_from_ds()

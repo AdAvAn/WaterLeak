@@ -67,7 +67,7 @@ class LeakSensors:
                 self.water_line_valves.leak_detected()
                 self.buzzers.alarm.play_alarm()
             self._zones = zones
-            self.display.show_alarm("•DR LEAK DETECTED •DR", zones)
+            self.display.show_alarm("!! LEAK DETECTED !!", zones)
 
     def _get_alarm_zones(self):
         if self._zone_1_leak_triggered and self._zone_2_leak_triggered:

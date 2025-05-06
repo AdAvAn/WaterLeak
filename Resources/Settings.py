@@ -1,86 +1,83 @@
+# WIFI Connection credentials
+WIFI_SSID: str = 'AP-5965'
+WIFI_PASSWORD: str = 'Kustik2011'
 
-# WIFI Connection cred.
-WIFI_SSID:str = 'AP-5965'
-WIFI_PASSWORD:str = 'Kustik2011'  
+# NTP server address
+NTP_SERVER: str = 'ua.pool.ntp.org'
 
-# NTP Сервер
-NTP_SERVER:str = 'ua.pool.ntp.org'
+# Time zone offset in hours (e.g., UTC+3 for Ukraine)
+TIME_ZONE_OFFSET: int = 3
 
-# Смещение часового пояса в часах (например, UTC+3 для Украины)
-TIME_ZONE_OFFSET:int = 3
+# Default screen display duration in seconds
+PRESENTED_SCREEN_TIME_SEC: int = 3
 
-#Промежуток времени смены стандартых экарнов по умолчанию
-PRESENTED_SCREEN_TIME_SEC:int = 3 
+# Normal screen brightness in percentage
+LCD_NORMAL_BRIGHTNESS: int = 100
 
-#Пнормальная яркость экрана в процентах
-LCD_NORMAL_BRIGHTNESS:int = 100
+# Screen brightness in sleep mode in percentage
+LCD_SLEEP_MODE_BRIGHTNESS: int = 30
 
-#Яркость экрана в режими сна в процентах
-LCD_SLEEP_MODE_BRIGHTNESS:int = 1
-
-#Врем в секунад после которго вклчиться режим сна
-SLEEP_MODE_MODE_TIMEOUNT:int = 100
-
+# Timeout in seconds before sleep mode activates
+SLEEP_MODE_TIMEOUT: int = 100
 
 # BUZZERS
-# Операционный buzzer 
+# Operational buzzer pin
 BUZZ_CONTROL_PIN = 16
-# Buzzer сиглализации
+# Alarm buzzer pin
 BUZZ_ALARM_PIN = 17
 
 # BUTTONS
-# Кнопка откытия горячей воды 
+# Button to open hot water
 VHOB_PIN = 27
-# Кнопка закрытия горячей воды 
+# Button to close hot water
 VHCB_PIN = 26
-# Кнопка откытия холодной воды 
+# Button to open cold water
 VCOB_PIN = 22
-# Кнопка закрытия холодной воды 
+# Button to close cold water
 VCCB_PIN = 21
-# Кнопка управления клпапаном нагревателя воды 
+# Button to control the water heater valve
 HOCB_PIN = 20
 
-# I2C1
+# I2C1 pins
 SCL_PIN = 19
 SDA_PIN = 18
 
 # HEATER
-# Порт включения / выключения водонагревателя
+# Pin to switch the water heater on/off
 POWER_HEATER_PIN = 11
 
 # VALVES
-# Время закрытия / открытия клапана в секундах
-VALVES_OPERAION_TIME = 21
-# Порт открытия клапана горячей воды 
+# Valve opening/closing duration in seconds
+VALVES_OPERATION_TIME = 21
+# Pin to open hot water valve
 OPEN_HOT_W_PIN = 0
-# Порт закрытия клапана горячей воды 
+# Pin to close hot water valve
 CLOSE_HOT_W_PIN = 1
-# Порт ошибки клапана горячей воды 
+# Pin indicating hot water valve error
 ERROR_HOT_W_PIN = 2
-# Порт открытия клапана холодной воды
+# Pin to open cold water valve
 OPEN_COLD_W_PIN = 3
-# Порт закрытия клапана холодной воды 
+# Pin to close cold water valve
 CLOSE_COLD_W_PIN = 4
-# Порт ошибки клапана холодной воды 
+# Pin indicating cold water valve error
 ERROR_COLD_W_PIN = 5
-
-# Порт открытия клапана водонагревателя воды 
+# Pin to open heater valve
 OPEN_HEATER_W_PIN = 6
-# Порт закрытия клапана водонагревателя воды 
+# Pin to close heater valve
 CLOSE_HEATER_W_PIN = 7
 
-# Порт получения сигнала от будильника
+# Pin for alarm signal from RTC
 DSDTC_ALARM_PIN = 10
 
-# SENSORS  
-TEMP_SENMSOR_POLLING_TIME = 30
-# Датчик темепратуры горячей воды
+# SENSORS
+# Polling interval for temperature sensors in seconds
+TEMP_SENSOR_POLLING_TIME = 30
+# Pin for hot water temperature sensor
 HWLT_SE1_PIN = 12
-# Датчик темепратуры вотонагревателя
+# Pin for heater temperature sensor
 HEATER_TEMP_PIN = 13
 
-# Датчик утечки воды в зоне №1
+# Pin for water leak sensor in zone #1
 LEAK_ZONE1_PIN = 14
-# Датчик утечки воды в зоне №2
+# Pin for water leak sensor in zone #2
 LEAK_ZONE2_PIN = 15
-

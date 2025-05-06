@@ -31,6 +31,6 @@ class HeaterButton:
 
 
     def _long_handler(self) -> None:
-        pass  # Реализуйте по необходимости
+        pass  
 
 

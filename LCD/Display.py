@@ -93,6 +93,7 @@ class Display:
         gc.collect()
 
     def reset_alarm(self):
+        self.reset_brightness()
         self.show_carusel()
         self.restart()
         gc.collect()
@@ -158,15 +159,15 @@ class Display:
             self._maybe_reduce_brightness()
 
     def _maybe_reduce_brightness(self):
-        if self._presentation_mode_screens_timeout >= Settings.SLEEP_MODE_MODE_TIMEOUNT:
+        if self._presentation_mode_screens_timeout >= Settings.SLEEP_MODE_TIMEOUT:
             if self.lcd.get_brightness() != Settings.LCD_SLEEP_MODE_BRIGHTNESS:
                 self.lcd.set_brightness(Settings.LCD_SLEEP_MODE_BRIGHTNESS)
-                self.logger.error(f"DISPLAY: Bghtness decrease to {Settings.LCD_SLEEP_MODE_BRIGHTNESS}")
+                self.logger.info(f"DISPLAY: Bghtness decrease to {Settings.LCD_SLEEP_MODE_BRIGHTNESS}")
 
     def reset_brightness(self):
         self._presentation_mode_screens_timeout = 0
         self.lcd.reset_brightness_to_default()
-        self.logger.error(f"DISPLAY: Bghtness reseted")
+        self.logger.info(f"DISPLAY: Bghtness reseted")
 
     def show_error_screen(self, error_code, error_text=None):
         from LCD.Screens.ErrorScreen import ErrorScreen

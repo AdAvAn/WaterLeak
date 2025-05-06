@@ -74,7 +74,7 @@ class WSLCD1602RGB:
         return self._current_brightness_persent
     
     def reset_brightness_to_default(self):
-        self.set_brightness(self._current_brightness_persent)
+        self.set_brightness(100)
 
     def set_brightness(self, brightness_percent):
         if not (0 <= brightness_percent <= 100):
@@ -121,10 +121,10 @@ class WSLCD1602RGB:
         i = 0
         while i < len(string):
             matched = False
-            # Проверяем каждый ключ из словаря available_custom_symbols
+            # Check any key in the word available_custom_symbols
             for key in self.available_custom_symbols.keys():
                 key_length = len(key)
-                # Проверка, не выходит ли срез за пределы строки
+                # Check that you don't have to look at the edge of the previous string
                 if i + key_length <= len(string) and string[i:i+key_length] == key:
                     symbols_index = self.custom_symbols_loaded.get(key)
                     if symbols_index is not None:
@@ -133,9 +133,9 @@ class WSLCD1602RGB:
                         matched = True
                         break
             
-            # Если не было найдено совпадение с кастомными символами
+           # If you don't need a special symbol
             if not matched:
-                # Проверка индекса, чтобы избежать IndexError
+               # Check Index to get IndexError
                 if i < len(string):
                     self._write_data(ord(string[i]))
                     i += 1

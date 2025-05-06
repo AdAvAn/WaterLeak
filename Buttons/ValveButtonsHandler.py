@@ -53,18 +53,6 @@ class ValveButtonsHandler:
                 self.buzzer.control.play_error() 
                 self.logger.error(f"BUTTONS: FAIELD: {e}")
             
-       
-        
-        # if self.valve.is_in_progress():
-        #     self.buzzer.control.play_error()
-        #     self.logger.info(f"BUTTONS: Action forbidden for open button because valve {self.valve.device_name} in progress")
-        # elif self.valve.is_open():
-        #     self.buzzer.control.play_error()
-        #     self.logger.info(f"BUTTONS: Action forbidden for open button because valve {self.valve.device_name} is already opened")
-        # else:
-        #     self.buzzer.control.play_confirm()
-        #     self.logger.info(f"BUTTONS: Start manual opening valve: {self.valve.device_name}")
-        #     self.valve.open()
 
     def _short_close_handler(self) -> None:
         if self.leak_sensors.is_detected_leaks():
@@ -81,27 +69,12 @@ class ValveButtonsHandler:
                 self.logger.info(f"BUTTONS: Start manual closing valve:  {self.valve.device_name}")
             except Exception as e:
                 self.buzzer.control.play_error() 
-                self.logger.error(f"BUTTONS: FAIELD: {e}")
-
-
-        
-
-        # if self.valve.is_in_progress():
-        #     self.logger.info(f"BUTTONS: Action forbidden for close button because valve {self.valve.device_name} in progress")
-        #     self.buzzer.control.play_error()
-        # elif self.valve.is_close():
-        #     self.logger.info(f"BUTTONS: Action forbidden for close button because valve {self.valve.device_name} is already closed")
-        #     self.buzzer.control.play_error()
-        # else:
-        #     self.buzzer.control.play_confirm()
-        #     self.logger.info(f"BUTTONS: Start manual closing valve:  {self.valve.device_name}")
-        #     self.valve.close()
-
+                self.logger.error(f"BUTTONS: FAIELD: {e}")  
             
     def _long_open_handler(self) -> None:
-        pass  # Реализуйте по необходимости
+        pass  
 
     def _long_close_handler(self) -> None:
-        pass  # Реализуйте по необходимости
+        pass  
 
 
