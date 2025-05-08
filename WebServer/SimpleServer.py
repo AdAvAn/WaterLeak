@@ -6,12 +6,11 @@ from RTC.DsRTC import DsRTC
 
 
 class SimpleServer:
-    def __init__(self, states, display, valves, leak_sensors, heater_switch):
+    def __init__(self, states, valves, leak_sensors, heater_switch):
         from Logging.AppLogger import AppLogger
         from Helpers.WiFiManager import WiFiManager
         self.logger = AppLogger()
         self.states = states
-        self.display = display
         self.valves = valves
         self.leak_sensors = leak_sensors
         self.heater_switch = heater_switch
@@ -212,7 +211,7 @@ class SimpleServer:
 
             <div class="card">
                 <h2>Leak Sensors Bathroom</h2>
-                <p>Leak State: <span class="{self.states.get_leak_sensor_state('zone_2')}">{self.states.get_leak_sensor_state('zone_1')}</span></p>
+                <p>Leak State: <span class="{self.states.get_leak_sensor_state('zone_2')}">{self.states.get_leak_sensor_state('zone_2')}</span></p>
                 <p>Last leak detected: {self.states.get_leak_sensor_action_time('zone_2')}</p>
                 <button onclick="fetch('/api/control?action=clear_alarm', {{method: 'POST'}}).then(() => location.reload())">Clear Alarm</button>
             </div>
@@ -319,7 +318,7 @@ class SimpleServer:
                 result = {"success": True, "message": "Toggled heater power"}
                 
             elif action == "clear_alarm":
-                self.display.reset_alarm()
+                self.leak_sensors.clear()
                 result = {"success": True, "message": "Alarm cleared"}
             
             self.send_response(client, 200, "OK", json.dumps(result), "application/json")

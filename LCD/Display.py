@@ -7,7 +7,6 @@ import Helpers.DisplayNames as DisplayNames
 import Resources.Settings as Settings
 
 from State.States import States
-from Buzzers.Buzzers import Buzzers
 from Logging.AppLogger import AppLogger
 
 from LCD.Screens.Screen import Screen
@@ -32,7 +31,6 @@ class Display:
         i2c = I2C(1, sda=Pin(Settings.SDA_PIN), scl=Pin(Settings.SCL_PIN), freq=400_000)
         self.lcd = WSLCD1602RGB(i2c, CustomSymbols.CUSTOM_SYMBOLS, Settings.LCD_NORMAL_BRIGHTNESS)
         self.logger = AppLogger()
-        self.buzzers = Buzzers()
         self.progress = Progress(self.lcd, self)
         self._screens: list[Screen] = []
         self._presented_screen = 0
@@ -85,7 +83,7 @@ class Display:
         self._can_turn_sleep_mode = False
         alarm_screen = AlarmScreen(self.lcd)
         alarm_screen.update_alarm(title, text)
-        self._screens = []
+        self._screens.clear()
         self._screens.append(alarm_screen)
         self.stop()
         self._presented_screen = len(self._screens)
@@ -105,10 +103,15 @@ class Display:
         self.reset_brightness()
         self._can_turn_sleep_mode = False
         self._presented_screen_time_sec = 1
-        self._screens = [screen for screen in self._screens if screen.get_screen_name() is DisplayNames.PROGRESS_SCREEN_NAME]
+        # Remove all not progress scren
+        self._screens = [s for s in self._screens if s.get_screen_name() is DisplayNames.PROGRESS_SCREEN_NAME]
+        # Remove current screrean
+        self._screens = [s for s in self._screens if s.get_device_name() is screen.get_device_name()]
+        # Add the new progress screen
         self._screens.append(screen)
         self._presented_screen = len(self._screens)-1
         self.restart()
+        gc.collect()
 
     def show_carusel(self, device_name=None):
         self._screens.clear()
@@ -130,7 +133,7 @@ class Display:
                     return
         self._presented_screen = 0
         self._can_turn_sleep_mode = True
-        self._presentation_mode_screens_timout = 0
+        self._presentation_mode_screens_timeout = 0  
         self.restart()
         gc.collect()
 
@@ -139,7 +142,6 @@ class Display:
         loading = StartingScreen(self.lcd)
         self._screens = [screen for screen in self._screens if issubclass(type(screen), StartingScreen)]
         loading.present()
-
 
     async def _display_loop(self):
         if not self._screens:
@@ -162,7 +164,7 @@ class Display:
         if self._presentation_mode_screens_timeout >= Settings.SLEEP_MODE_TIMEOUT:
             if self.lcd.get_brightness() != Settings.LCD_SLEEP_MODE_BRIGHTNESS:
                 self.lcd.set_brightness(Settings.LCD_SLEEP_MODE_BRIGHTNESS)
-                self.logger.info(f"DISPLAY: Bghtness decrease to {Settings.LCD_SLEEP_MODE_BRIGHTNESS}")
+                self.logger.info(f"DISPLAY: Bghtness decrease from {self.lcd.get_brightness()} to {Settings.LCD_SLEEP_MODE_BRIGHTNESS}")
 
     def reset_brightness(self):
         self._presentation_mode_screens_timeout = 0

@@ -38,8 +38,7 @@ class ValveButtonsHandler:
 
     def _short_open_handler(self) -> None:
         if self.leak_sensors.is_detected_leaks():
-            self.buzzer.alarm.off()
-            self.display.reset_alarm()
+            self.leak_sensors.clear()
             self.logger.info(f"BUTTONS: Action Forbidden becose leak detected")
         else:
             if self.valve.is_in_progress():
@@ -56,13 +55,12 @@ class ValveButtonsHandler:
 
     def _short_close_handler(self) -> None:
         if self.leak_sensors.is_detected_leaks():
-            self.buzzer.alarm.off()
-            self.display.reset_alarm()
+            self.leak_sensors.clear()
             self.logger.info(f"BUTTONS: Action forbidden because Leak Detected")
         else:
             if self.valve.is_in_progress():
                 self.valve.force_stop()
-            
+                
             try:
                 self.valve.close()
                 self.buzzer.control.play_confirm() 

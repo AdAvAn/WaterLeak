@@ -25,9 +25,11 @@ class Progress:
     
                  
     def _progress_completion(self, progress_screan):
+        from Buzzers.Buzzers import Buzzers
+        self.buzzers = Buzzers()
         device_name:str = progress_screan.get_device_name()
         self._display.remove_screen(progress_screan)
-        self._display.buzzers.control.play_done()
+        self.buzzers.control.play_done()
         if self._display.is_exist_screens() == False:
             self._display.show_carusel(device_name) # type: ignore
 

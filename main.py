@@ -75,12 +75,21 @@ class Main:
             gc.collect()
         except Exception as e:
             self.logger.error(f"Main: Failed to initialize Valves: {e}")
-            self._handle_initialization_error("ValvesD Err", "Chek Valves!")            
+            self._handle_initialization_error("ValvesD Err", "Chek Valves!")        
+
+        try:
+             # Heater Power Swith
+            from Heater.HeaterPowerSwith import HeaterPowerSwith
+            self.heater_swith = HeaterPowerSwith(self.states)
+            gc.collect()
+        except Exception as e:
+            self.logger.error(f"Main: Failed to initialize Heater Power: {e}")
+            self._handle_initialization_error("Err Hea.Power", "Chek!")           
 
         try:
             # Leak Sensors
             from Sensors.LeakSensors import LeakSensors
-            self.leak_sensors = LeakSensors(self.states, self.display, self.water_line_valves)
+            self.leak_sensors = LeakSensors(self.states, self.display, self.water_line_valves, self.heater_swith)
             gc.collect()
         except Exception as e:
             self.logger.error(f"Main: Failed to initialize Leak Sensors: {e}")
@@ -93,17 +102,7 @@ class Main:
             gc.collect()
         except Exception as e:
             self.logger.error(f"Main: Failed to initialize Valves: {e}")
-            self._handle_initialization_error("ValvesB Err", "Chek Valves!")    
-                    
-        
-        try:
-             # Heater Power Swith
-            from Heater.HeaterPowerSwith import HeaterPowerSwith
-            self.heater_swith = HeaterPowerSwith(self.states)
-            gc.collect()
-        except Exception as e:
-            self.logger.error(f"Main: Failed to initialize Heater Power: {e}")
-            self._handle_initialization_error("Err Hea.Power", "Chek!")        
+            self._handle_initialization_error("ValvesB Err", "Chek Valves!")     
 
         try:
             # Heater control Button
@@ -165,7 +164,6 @@ class Main:
         
                 self._web_server = WebServer.SimpleServer(
                     states=self.states,
-                    display=self.display,
                     valves=self.water_line_valves,
                     leak_sensors=self.leak_sensors,
                     heater_switch=self.heater_swith
@@ -194,7 +192,7 @@ class Main:
         self.logger.warning(f"Main: Leak controller stopped. Date: {self.ds_rtc.get_datetime_ddmmyy()}")
 
     async def run(self): 
-        await self.startOperating()
+        await self.startOperating() # type: ignore
         self.logger.info(f"Leak controller Started. Date: {self.ds_rtc.get_datetime_ddmmyy()}")
         
         tasks = []

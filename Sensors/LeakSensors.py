@@ -7,15 +7,17 @@ from Logging.AppLogger import AppLogger
 import Helpers.DeviceStates as DeviceStates
 from LCD.Display import Display
 from Valves.WaterLineValves import WaterLineValves
+from Heater.HeaterPowerSwith import HeaterPowerSwith
 
 class LeakSensors:
 
     _zones = None
 
-    def __init__(self,  states:States, display: Display, water_line_valves: WaterLineValves):
+    def __init__(self,  states:States, display: Display, water_line_valves: WaterLineValves, heater: HeaterPowerSwith):
         self.states = states
         self.display = display
         self.water_line_valves = water_line_valves
+        self._heater = heater
         self.logger = AppLogger()
         self.buzzers = Buzzers()
         self.zone_1_leak = LeakPort(DeviceNames.ZONE_1_LEAK_SENSORS_KEY, Settings.LEAK_ZONE1_PIN, self._zone_1_leak_handler)
@@ -37,6 +39,15 @@ class LeakSensors:
         self.zone_2_leak.stop()
         self.logger.info("LEAK SENSORS: Leak sensor monitoring has stoped")
 
+    def clear(self):
+        if self.is_detected_leaks():
+            self._zones = None
+            self._update_leaks_sensor_state()
+            self.display.reset_alarm()
+            self.buzzers.alarm.off()
+            self.stop()
+            self.start()
+
     # MARK: HELPERS
     def _update_leaks_sensor_state(self):
         zone1 = self.zone_1_leak.get_leak_state()
@@ -49,6 +60,7 @@ class LeakSensors:
     def _zone_1_leak_handler(self, state:str) -> None:
         self._zone_1_leak_triggered = True if state == DeviceStates.LEAK else False
         if self._zone_1_leak_triggered:
+            self.zone_1_leak.stop()
             self.logger.debug(f"LEAK SENSOR: Detected leak in ZONE 1")
             self.states.update_leak_sensor_state(self.zone_1_leak.name, state)
             self._make_akarm()
@@ -56,6 +68,7 @@ class LeakSensors:
     def _zone_2_leak_handler(self, state:str) -> None:
         self._zone_2_leak_triggered = True if state == DeviceStates.LEAK else False
         if self._zone_2_leak_triggered:
+            self.zone_2_leak.stop()
             self.logger.debug(f"LEAK SENSOR: Detected leak in ZONE 2")
             self.states.update_leak_sensor_state(self.zone_2_leak.name, state)
             self._make_akarm()
@@ -64,10 +77,11 @@ class LeakSensors:
         zones = self._get_alarm_zones()
         if zones != self._zones:
             if self._zones is None:
-                self.water_line_valves.leak_detected()
-                self.buzzers.alarm.play_alarm()
+                self.water_line_valves.leak_detected() #1 Close valves
+                self._heater.power_off()               #2 Power off heater
+                self.buzzers.alarm.play_alarm()        #3 Play alarm
             self._zones = zones
-            self.display.show_alarm("!! LEAK DETECTED !!", zones)
+            self.display.show_alarm("LEAK DETECTED", zones)
 
     def _get_alarm_zones(self):
         if self._zone_1_leak_triggered and self._zone_2_leak_triggered:

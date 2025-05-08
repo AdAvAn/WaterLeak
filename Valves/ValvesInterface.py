@@ -1,15 +1,13 @@
 import Helpers.DeviceStates as DeviceStates
 from State.States import States
-from .Valve.OpenValve import OpenValve
-from .Valve.CloseValve import CloseValve
-from Logging.AppLogger import AppLogger
 
 class ValvesInterface:
     
     def __init__(self, device_name, open_pin, close_pin, feedback_pin, state: States):
+        from .Valve.OpenValve import OpenValve
+        from .Valve.CloseValve import CloseValve
         self.state = state
         self.device_name = device_name
-        self.logger = AppLogger()
         self.open_valve = OpenValve(self.device_name, open_pin, state)
         self.close_valve = CloseValve(self.device_name, close_pin, state)
         # self.feedback = ValvesFeedback(feedback_pin, self.valves_error_handler)
@@ -36,8 +34,10 @@ class ValvesInterface:
         self.close_valve.start(width_progress = True)
 
     def leak_detected(self):
+        from Logging.AppLogger import AppLogger
         self.force_stop()
         self.close_valve.start(width_progress = False)
+        self.logger = AppLogger()
         self.logger.debug("VALVES: Activated emergency valve closure")
 
     def force_stop(self):

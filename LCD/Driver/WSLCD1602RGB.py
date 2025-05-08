@@ -79,9 +79,9 @@ class WSLCD1602RGB:
     def set_brightness(self, brightness_percent):
         if not (0 <= brightness_percent <= 100):
             brightness_percent = 100
-        
-        self._current_brightness_persent = int((brightness_percent / 100) * 255)
-        self._set_rgb_reg(Const.GRPPWM, self._current_brightness_persent)
+        self._current_brightness_persent = brightness_percent
+        brightness = int((brightness_percent / 100) * 255)
+        self._set_rgb_reg(Const.GRPPWM, brightness)
 
     def set_rgb(self, red, green, blue):
         if not (0 <= red <= 255) or not (0 <= green <= 255) or not (0 <= blue <= 255):

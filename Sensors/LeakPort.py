@@ -11,7 +11,6 @@ class LeakPort:
 
     def stop(self) -> None:
        if self._task is not None:
-            self._task.cancel() # type: ignore
             self._task = None
 
     def start(self) -> None:
