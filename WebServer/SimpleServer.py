@@ -114,6 +114,12 @@ class SimpleServer:
         
         client.write(response.encode())
         client.write(content_bytes)
+
+    async def _reboot_device(self):
+        self.logger.info("SERVER: Rebooting device by user request")
+        await asyncio.sleep(1)  # Allow response to be sent before reboot
+        import machine
+        machine.reset()
     
     def handle_root(self, client):
         # Getting temperature data
@@ -265,9 +271,14 @@ class SimpleServer:
                             </div>
                         </div>
                     </div>
+                    <div class="system-box">
+                        <h3>Reboot</h3>
+                        <div style="text-align: center;">
+                            <button onclick="if(confirm('Are you sure you want to reboot the device?')) fetch('/api/control?action=reboot', {{method: 'POST'}}).then(() => alert('Device is rebooting...'));">Reboot Device</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
+            </div>  
             <script>
                 setTimeout(() => location.reload(), 5000);
             </script>
@@ -320,6 +331,11 @@ class SimpleServer:
             elif action == "clear_alarm":
                 self.leak_sensors.clear()
                 result = {"success": True, "message": "Alarm cleared"}
+
+            elif action == "reboot":
+                result = {"success": True, "message": "Rebooting device..."}
+                self.send_response(client, 200, "OK", json.dumps(result), "application/json")
+                asyncio.create_task(self._reboot_device())
             
             self.send_response(client, 200, "OK", json.dumps(result), "application/json")
         except Exception as e:
