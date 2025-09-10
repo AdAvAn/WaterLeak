@@ -115,10 +115,10 @@ class Main:
             self._handle_initialization_error("ValvesB Err", "Check Buttons!")     
 
         try:
-            # Heater control Button
+            # Heater control Button - now with leak sensors reference
             self._update_init_status("Init htr button...")
             from Buttons.HeaterButton import HeaterButton
-            self.heater_button = HeaterButton(self.states)
+            self.heater_button = HeaterButton(self.states, self.leak_sensors) 
             gc.collect()
         except Exception as e:
             self.logger.error(f"Main: Failed to initialize Heater Buttons: {e}")

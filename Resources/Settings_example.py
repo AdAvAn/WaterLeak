@@ -1,5 +1,5 @@
 # APPLICATION VERSION
-APP_VERSION: str = '1.0'
+APP_VERSION: str = '1.1'
 
 # WIFI Connection credentials
 WIFI_SSID: str = 'YOUR_WIFI_SSID'

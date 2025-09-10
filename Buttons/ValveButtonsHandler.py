@@ -24,6 +24,11 @@ class ValveButtonsHandler:
         self.open_button.stop()
         self.close_button.stop()
 
+    def _is_alarm_active(self) -> bool:
+        """Check if alarm mode is currently active"""
+        return (self.leak_sensors.is_detected_leaks() and 
+                not self.leak_sensors._alarm_acknowledged)
+
     def _open_callback(self, event: str) -> None:
         if event == ButtonPort.SHORT_EVENT_ID:
             self._short_open_handler()
@@ -37,9 +42,16 @@ class ValveButtonsHandler:
             self._long_close_handler()
 
     def _short_open_handler(self) -> None:
-        if self.leak_sensors.is_detected_leaks():
+        # If alarm is active, any button press clears the alarm
+        if self._is_alarm_active():
+            self.logger.info(f"BUTTONS: Alarm mode active - clearing alarm instead of opening valve")
             self.leak_sensors.clear()
-            self.logger.info(f"BUTTONS: Action Forbidden becose leak detected")
+            return
+
+        # Normal operation - check for leaks before opening valve
+        if self.leak_sensors.is_detected_leaks():
+            self.logger.info(f"BUTTONS: Action forbidden because leak detected")
+            self.buzzer.control.play_error()
         else:
             if self.valve.is_in_progress():
                 self.valve.force_stop()
@@ -50,13 +62,20 @@ class ValveButtonsHandler:
                 self.logger.info(f"BUTTONS: Start manual opening valve: {self.valve.device_name}")
             except Exception as e:
                 self.buzzer.control.play_error() 
-                self.logger.error(f"BUTTONS: FAIELD: {e}")
+                self.logger.error(f"BUTTONS: FAILED: {e}")
             
 
     def _short_close_handler(self) -> None:
-        if self.leak_sensors.is_detected_leaks():
+        # If alarm is active, any button press clears the alarm
+        if self._is_alarm_active():
+            self.logger.info(f"BUTTONS: Alarm mode active - clearing alarm instead of closing valve")
             self.leak_sensors.clear()
-            self.logger.info(f"BUTTONS: Action forbidden because Leak Detected")
+            return
+
+        # Normal operation - check for leaks before closing valve
+        if self.leak_sensors.is_detected_leaks():
+            self.logger.info(f"BUTTONS: Action forbidden because leak detected")
+            self.buzzer.control.play_error()
         else:
             if self.valve.is_in_progress():
                 self.valve.force_stop()
@@ -64,15 +83,23 @@ class ValveButtonsHandler:
             try:
                 self.valve.close()
                 self.buzzer.control.play_confirm() 
-                self.logger.info(f"BUTTONS: Start manual closing valve:  {self.valve.device_name}")
+                self.logger.info(f"BUTTONS: Start manual closing valve: {self.valve.device_name}")
             except Exception as e:
                 self.buzzer.control.play_error() 
-                self.logger.error(f"BUTTONS: FAIELD: {e}")  
+                self.logger.error(f"BUTTONS: FAILED: {e}")  
             
     def _long_open_handler(self) -> None:
-        pass  
+        # If alarm is active, any button press clears the alarm
+        if self._is_alarm_active():
+            self.logger.info(f"BUTTONS: Alarm mode active - clearing alarm instead of long open action")
+            self.leak_sensors.clear()
+            return
+        # Normal long press operation can be implemented here if needed
 
     def _long_close_handler(self) -> None:
-        pass  
-
-
+        # If alarm is active, any button press clears the alarm
+        if self._is_alarm_active():
+            self.logger.info(f"BUTTONS: Alarm mode active - clearing alarm instead of long close action")
+            self.leak_sensors.clear()
+            return
+        # Normal long press operation can be implemented here if needed

@@ -132,7 +132,7 @@ class LeakSensors:
                 self._zones = zones
                 if self.display:
                     self.logger.warning(f"LEAK SENSORS: Showing startup leak alarm on display: {zones}")
-                    self.display.show_alarm("STARTUP LEAK", zones)
+                    self.display.show_alarm("LEAK DETECTED", zones)
             else:
                 self.logger.info("LEAK SENSORS: Startup leak check passed - sensors became dry during stabilization")
                 
