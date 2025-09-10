@@ -26,7 +26,7 @@ class ValveButtonsHandler:
 
     def _is_alarm_active(self) -> bool:
         """Check if alarm mode is currently active"""
-        return (self.leak_sensors.is_detected_leaks() and 
+        return (self.leak_sensors._zones is not None and 
                 not self.leak_sensors._alarm_acknowledged)
 
     def _open_callback(self, event: str) -> None:

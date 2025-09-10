@@ -24,7 +24,7 @@ class HeaterButton:
         """Check if alarm mode is currently active"""
         if self.leak_sensors is None:
             return False
-        return (self.leak_sensors.is_detected_leaks() and 
+        return (self.leak_sensors._zones is not None and 
                 not self.leak_sensors._alarm_acknowledged)
 
     def callback(self, event: str) -> None:
