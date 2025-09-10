@@ -33,14 +33,16 @@ class AlarmBuzzer:
     def off(self) -> None:
         if self._task is not None:
             try:
-                if not self._task.done():  # Check if task is still running
-                    self._task.cancel()
+                self._task.cancel()
+                self._task = None
                 self._logger.info("ALARM_BUZZER: Alarm stopped")
             except Exception as e:
                 self._logger.error(f"ALARM_BUZZER: Error stopping task: {e}")
             finally:
                 self._task = None
                 self._pin.value(0)  # Ensure pin is off
+        else:
+             self._logger.info("ALARM_BUZZER: Alarm buzzer is not working, cannot cancel")
 
     # MARK: Helpers
     async def _start_alarm(self) -> None:

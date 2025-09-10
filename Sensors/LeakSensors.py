@@ -12,7 +12,7 @@ import uasyncio as asyncio
 
 class LeakSensors:
 
-    _zones = None
+    alarm_zones = None
 
     def __init__(self,  states:States, water_line_valves: WaterLineValves, heater: HeaterPowerSwith, display=None):
         self.states = states
@@ -26,7 +26,6 @@ class LeakSensors:
         self._zone_1_leak_triggered = self.zone_1_leak.is_detected_leak()
         self._zone_2_leak_triggered = self.zone_2_leak.is_detected_leak()
         self._alarm_acknowledged = False  # Flag to track if user acknowledged the alarm
-        self._initialization_complete = False  # Flag to track initialization completion
         self._update_leaks_sensor_state()
 
     def is_detected_leaks(self) -> bool:
@@ -37,11 +36,10 @@ class LeakSensors:
         self.zone_2_leak.start()
         
         # Check for leaks detected during initialization and handle them
-        if self.is_detected_leaks() and not self._initialization_complete:
+        if self.is_detected_leaks():
             self.logger.warning("LEAK SENSORS: Leaks detected during system startup - initiating emergency sequence")
             asyncio.create_task(self._handle_startup_leak_detection())
-        
-        self._initialization_complete = True
+    
         self.logger.info(f"LEAK SENSORS: Leak sensor [{self.zone_1_leak.name} and {self.zone_2_leak.name}] has start monitoring")
         
     def stop(self):
@@ -50,23 +48,19 @@ class LeakSensors:
         self.logger.info("LEAK SENSORS: Leak sensor monitoring has stoped")
 
     def clear(self):
+         # Stop alarm sound
+        self.buzzers.alarm.off()
+
         """Clear alarm sound and display, but keep sensor states until sensors are physically dry"""
-        if self.is_detected_leaks():
+        if self.is_detected_leaks(): 
             self._alarm_acknowledged = True
-            self.logger.info("LEAK SENSORS: Alarm acknowledged by user - stopping sound and returning display to normal")
-            
-            # Stop alarm sound
-            self.buzzers.alarm.off()
-            
             # Return display to normal state
             if self.display: 
                 self.display.reset_alarm()
-            
-            # Continue monitoring sensors to detect when they become dry
-            # Don't restart sensors - they should continue running
-            self.logger.info("LEAK SENSORS: Continuing to monitor sensors for dry state")
-        else:
-            self.logger.info("LEAK SENSORS: No active leaks to clear")
+        
+        # Continue monitoring sensors to detect when they become dry
+        # Don't restart sensors - they should continue running
+        self.logger.info("LEAK SENSORS: Continuing to monitor sensors for dry state")
 
     # MARK: HELPERS
     def _update_leaks_sensor_state(self):
@@ -99,10 +93,11 @@ class LeakSensors:
         
         # If all sensors recovered, reset alarm acknowledgment and zones
         if not self.is_detected_leaks():
-            if self._alarm_acknowledged or self._zones is not None:
-                self.logger.info("LEAK SENSORS: All sensors recovered - fully resetting alarm state")
-                self._alarm_acknowledged = False
-                self._zones = None
+            self.logger.info("LEAK SENSORS: All sensors recovered - fully resetting alarm state")
+            self._alarm_acknowledged = False
+            self.alarm_zones = None
+            if self.display: 
+                self.display.reset_alarm()
 
     async def _handle_startup_leak_detection(self):
         """Handle leaks detected during system startup with the same algorithm as runtime detection"""
@@ -129,7 +124,7 @@ class LeakSensors:
                 await asyncio.sleep(0.1)  # Give alarm time to start
                 
                 # Step 4: Set zones and show alarm on display
-                self._zones = zones
+                self.alarm_zones = zones
                 if self.display:
                     self.logger.warning(f"LEAK SENSORS: Showing startup leak alarm on display: {zones}")
                     self.display.show_alarm("LEAK DETECTED", zones)
@@ -183,8 +178,8 @@ class LeakSensors:
             zones = self._get_alarm_zones()
             
             # Only trigger full alarm sequence if alarm wasn't acknowledged yet
-            if zones != self._zones and not self._alarm_acknowledged:
-                if self._zones is None:
+            if zones != self.alarm_zones and not self._alarm_acknowledged:
+                if self.alarm_zones is None:
                     # Step 1: Close valves immediately
                     self.water_line_valves.leak_detected()
                     # Step 2: Power off heater
@@ -195,10 +190,10 @@ class LeakSensors:
                     self.buzzers.alarm.play_alarm()
                     await asyncio.sleep(0.1)  # Give alarm time to start
                     
-                self._zones = zones
+                self.alarm_zones = zones
                 
                 # Step 4: Show alarm on display (only if not acknowledged)
-                if self.display and not self._alarm_acknowledged:  
+                if self.display:  
                     self.logger.warning(f"LEAK SENSOR: Showing alarm on display: {zones}")
                     self.display.show_alarm("LEAK DETECTED", zones)
                     

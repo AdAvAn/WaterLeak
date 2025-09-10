@@ -12,20 +12,13 @@ class HeaterButton:
         self.logger = AppLogger()
         self._port = ButtonPort(Settings.HOCB_PIN, self.callback)
         self.heater = HeaterPowerSwith(states)
-        self.leak_sensors = leak_sensors  # Add reference to leak sensors
+        self.leak_sensors = leak_sensors 
         
     def start(self):
         self._port.start()
 
     def stop(self):
         self._port.stop()
-
-    def _is_alarm_active(self) -> bool:
-        """Check if alarm mode is currently active"""
-        if self.leak_sensors is None:
-            return False
-        return (self.leak_sensors._zones is not None and 
-                not self.leak_sensors._alarm_acknowledged)
 
     def callback(self, event: str) -> None:
         if event == ButtonPort.SHORT_EVENT_ID:
@@ -35,10 +28,9 @@ class HeaterButton:
 
     def _short_handler(self) -> None:
         # If alarm is active, any button press clears the alarm
-        if self._is_alarm_active():
-            self.logger.info(f"BUTTONS: Alarm mode active - clearing alarm instead of toggling heater")
-            if self.leak_sensors:
-                self.leak_sensors.clear()
+        if self.leak_sensors:
+            self.leak_sensors.clear()
+            if self.leak_sensors.is_detected_leaks():
                 return
 
         # Normal operation
@@ -48,8 +40,6 @@ class HeaterButton:
 
     def _long_handler(self) -> None:
         # If alarm is active, any button press clears the alarm
-        if self._is_alarm_active():
-            self.logger.info(f"BUTTONS: Alarm mode active - clearing alarm instead of long heater action")
-            if self.leak_sensors:
-                self.leak_sensors.clear()
-                return
+        if self.leak_sensors:
+            self.leak_sensors.clear()
+            return
