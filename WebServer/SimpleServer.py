@@ -24,6 +24,8 @@ class SimpleServer:
             return False
             
         try:
+            gc.collect()
+            
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server_socket.setblocking(False)
@@ -61,20 +63,27 @@ class SimpleServer:
                     # Normal behavior for a non-blocking socket
                     pass
                 
-                await asyncio.sleep_ms(20)
-                gc.collect()
+                await asyncio.sleep_ms(50)  # Increased delay for better memory management
+                
+                # More aggressive garbage collection
+                if gc.mem_free() < 15000:  # If less than 15KB free
+                    gc.collect()
                 
             except Exception as e:
                 self.logger.error("SERVER: Loop error: " + str(e))
                 await asyncio.sleep_ms(500)
+                gc.collect()  # Collect on error
     
     async def handle_client(self, client, addr):
         self.logger.debug("SERVER: Client from " + str(addr))
         try:
+            # Force garbage collection before handling request
+            gc.collect()
+            
             client.settimeout(1.0)
             
             try:
-                request = client.recv(1024).decode()
+                request = client.recv(512).decode()  # Reduced buffer size
                 request_line = request.split('\r\n')[0]
                 method, path, _ = request_line.split(' ')
                 
@@ -89,7 +98,7 @@ class SimpleServer:
                 
                 # Request Routing
                 if path == '/':
-                    self.handle_root(client)
+                    await self.handle_root_chunked(client)  # Use chunked response
                 elif path == '/api/status':
                     self.handle_status(client)
                 elif path == '/api/control' and method == 'POST':
@@ -116,98 +125,51 @@ class SimpleServer:
         client.write(response.encode())
         client.write(content_bytes)
 
-    async def _reboot_device(self):
-        self.logger.info("SERVER: Rebooting device by user request")
-        await asyncio.sleep(1)  # Allow response to be sent before reboot
-        import machine
-        machine.reset()
+    async def handle_root_chunked(self, client):
+        """Send HTML response in chunks to avoid memory allocation errors"""
+        try:
+            # Send HTTP headers
+            headers = "HTTP/1.1 200 OK\r\n"
+            headers += "Content-Type: text/html\r\n"
+            headers += "Connection: close\r\n"
+            headers += "Cache-Control: no-cache\r\n\r\n"
+            client.write(headers.encode())
+            
+            # Send HTML header
+            await self._send_html_header(client)
+            
+            # Send status cards one by one
+            await self._send_valve_card(client, 'hot_water_valve', 'Hot Water Valve')
+            gc.collect()
+            
+            await self._send_valve_card(client, 'cold_water_valve', 'Cold Water Valve')
+            gc.collect()
+            
+            await self._send_leak_card(client, 'zone_1', 'Leak Sensors (Zone 1)')
+            gc.collect()
+            
+            await self._send_leak_card(client, 'zone_2', 'Leak Sensors (Zone 2)')
+            gc.collect()
+            
+            await self._send_heater_card(client)
+            gc.collect()
+            
+            await self._send_temperature_cards(client)
+            gc.collect()
+            
+            await self._send_system_info(client)
+            gc.collect()
+            
+            # Send HTML footer
+            await self._send_html_footer(client)
+            
+        except Exception as e:
+            self.logger.error("SERVER: Error sending chunked response: " + str(e))
     
-    def handle_root(self, client):
-        # Getting temperature data
-        hot_water_temp = self.states.get_temperature('hot_water_temp')
-        hot_water_prev = self.states.get_temperature_preview_state('hot_water_temp')
-        heater_temp = self.states.get_temperature('heater_temp')
-        heater_prev = self.states.get_temperature_preview_state('heater_temp')
-        
-        # Function for determining the trend
-        def get_trend(current, prev):
-            # Handle error states
-            if current in ["No temp sensor", "ERROR", None] or prev in ["No temp sensor", "ERROR", None]:
-                return ""
-            if isinstance(current, str) or isinstance(prev, str):
-                return ""
-            try:
-                if float(current) > float(prev):
-                    return "↑" 
-                elif float(current) < float(prev):
-                    return "↓" 
-                else:
-                    return "→" 
-            except:
-                return ""
-        
-        # Function to format temperature display
-        def format_temp_display(temp, trend):
-            if temp == "No temp sensor":
-                return "Sensor not found", "red"
-            elif temp == "ERROR":
-                return "Sensor error", "red"
-            elif temp is None:
-                return "--", "gray"
-            else:
-                temp_str = str(temp) + " &deg;C"
-                if trend:
-                    trend_class = "up" if trend == "↑" else "down" if trend == "↓" else "same"
-                    temp_str += " <span class=\"trend-" + trend_class + "\">" + trend + "</span>"
-                return temp_str, ""
-        
-        # Identify trends to display
-        hot_water_trend = get_trend(hot_water_temp, hot_water_prev)
-        heater_trend = get_trend(heater_temp, heater_prev)
-        
-        # Format temperature displays
-        hot_water_display, hot_water_color = format_temp_display(hot_water_temp, hot_water_trend)
-        heater_display, heater_color = format_temp_display(heater_temp, heater_trend)
-        
-        # Get system information
-        system_info = self.get_system_info()
-        
-        # Get valve states
-        hot_valve_state = self.states.get_valve_state('hot_water_valve') or "unknown"
-        cold_valve_state = self.states.get_valve_state('cold_water_valve') or "unknown"
-        leak_zone1 = self.states.get_leak_sensor_state('zone_1') or "unknown"
-        leak_zone2 = self.states.get_leak_sensor_state('zone_2') or "unknown"
-        heater_state = self.states.get_heater_state('heater_power_swith') or "Not installed"
-        
-        # Get action times
-        hot_valve_time = self.states.get_valve_action_time('hot_water_valve')
-        cold_valve_time = self.states.get_valve_action_time('cold_water_valve')
-        leak1_time = self.states.get_leak_sensor_action_time('zone_1')
-        leak2_time = self.states.get_leak_sensor_action_time('zone_2')
-        heater_time = self.states.get_heater_action_time('heater_power_swith')
-        temp_hot_time = self.states.get_temperature_action_time('hot_water_temp')
-        temp_heater_time = self.states.get_temperature_action_time('heater_temp')
-        
-        # Get current time
+    
+    async def _send_html_header(self, client):
+        """Send HTML header and basic page structure"""
         current_time = DsRTC().get_datetime_ddmmyy()
-        
-        # Memory info
-        mem_used_kb = system_info["memory"]["used"] // 1024
-        mem_free_kb = system_info["memory"]["free"] // 1024
-        mem_percent = system_info["memory"]["percent_used"]
-        
-        # CPU temp
-        cpu_temp = system_info["cpu_temp"]
-        
-        # Storage info
-        if isinstance(system_info["filesystem"]["used"], str):
-            storage_used_kb = "N/A"
-            storage_free_kb = "N/A" 
-            storage_percent = 0
-        else:
-            storage_used_kb = system_info["filesystem"]["used"] // 1024
-            storage_free_kb = system_info["filesystem"]["free"] // 1024
-            storage_percent = system_info["filesystem"]["percent_used"]
         
         html = """<!DOCTYPE html>
 <html>
@@ -257,163 +219,167 @@ class SimpleServer:
             color: #0066cc;
             text-decoration: none;
         }
-        .footer a:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
     <h1>Water Control System</h1>
-    <div class="version">Version """ +Settings.APP_VERSION + """</div>
+    <div class="version">Version """ + Settings.APP_VERSION + """</div>
     <p>Current time: """ + current_time + """</p>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
     
-    <div class="card">
-        <h2>Hot Water Valve</h2>
-        <p>Valve State: <span class=\"""" + hot_valve_state + """\">""" + hot_valve_state + """</span></p>
-        <p>State changed: """ + hot_valve_time + """</p>
-        <button onclick="fetch('/api/control?action=open_valve&device=hot_water_valve', {method: 'POST'}).then(() => location.reload())">Open</button>
-        <button onclick="fetch('/api/control?action=close_valve&device=hot_water_valve', {method: 'POST'}).then(() => location.reload())">Close</button>
+    async def _send_valve_card(self, client, valve_name, title):
+        """Send a single valve card"""
+        valve_state = self.states.get_valve_state(valve_name) or "unknown"
+        valve_time = self.states.get_valve_action_time(valve_name)
+        
+        html = """<div class="card">
+        <h2>""" + title + """</h2>
+        <p>Valve State: <span class=\"""" + valve_state + """\">""" + valve_state + """</span></p>
+        <p>State changed: """ + valve_time + """</p>
+        <button onclick="fetch('/api/control?action=open_valve&device=""" + valve_name + """', {method: 'POST'}).then(() => location.reload())">Open</button>
+        <button onclick="fetch('/api/control?action=close_valve&device=""" + valve_name + """', {method: 'POST'}).then(() => location.reload())">Close</button>
     </div>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
     
-    <div class="card">
-        <h2>Cold Water Valve</h2>
-        <p>Valve State: <span class=\"""" + cold_valve_state + """\">""" + cold_valve_state + """</span></p>
-        <p>State changed: """ + cold_valve_time + """</p>
-        <button onclick="fetch('/api/control?action=open_valve&device=cold_water_valve', {method: 'POST'}).then(() => location.reload())">Open</button>
-        <button onclick="fetch('/api/control?action=close_valve&device=cold_water_valve', {method: 'POST'}).then(() => location.reload())">Close</button>
-    </div>
-    
-    <div class="card">
-        <h2>Leak Sensors (Zone 1)</h2>
-        <p>Leak State: <span class=\"""" + leak_zone1 + """\">""" + leak_zone1 + """</span></p>
-        <p>Last leak detected: """ + leak1_time + """</p>
+    async def _send_leak_card(self, client, zone_name, title):
+        """Send a single leak sensor card"""
+        leak_state = self.states.get_leak_sensor_state(zone_name) or "unknown"
+        leak_time = self.states.get_leak_sensor_action_time(zone_name)
+        
+        html = """<div class="card">
+        <h2>""" + title + """</h2>
+        <p>Leak State: <span class=\"""" + leak_state + """\">""" + leak_state + """</span></p>
+        <p>Last leak detected: """ + leak_time + """</p>
         <button onclick="fetch('/api/control?action=clear_alarm', {method: 'POST'}).then(() => location.reload())">Clear Alarm</button>
     </div>
-
-    <div class="card">
-        <h2>Leak Sensors (Zone 2)</h2>
-        <p>Leak State: <span class=\"""" + leak_zone2 + """\">""" + leak_zone2 + """</span></p>
-        <p>Last leak detected: """ + leak2_time + """</p>
-        <button onclick="fetch('/api/control?action=clear_alarm', {method: 'POST'}).then(() => location.reload())">Clear Alarm</button>
-    </div>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
     
-    <div class="card">
+    async def _send_heater_card(self, client):
+        """Send heater card"""
+        heater_state = self.states.get_heater_state('heater_power_swith') or "Not installed"
+        heater_time = self.states.get_heater_action_time('heater_power_swith')
+        
+        html = """<div class="card">
         <h2>Heater</h2>
         <p>Heater state: <span class=\"""" + heater_state + """\">""" + heater_state + """</span></p>
         <p>State changed: """ + heater_time + """</p>
         <button onclick="fetch('/api/control?action=toggle_heater&device=heater_power_swith', {method: 'POST'}).then(() => location.reload())">Toggle Power</button>
     </div>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
     
-    <div class="card">
-        <h2>Hot Water line Temperature</h2>"""
-
-        if hot_water_color:
-            html += """<p style="color: """ + hot_water_color + """;">Current temp: """ + hot_water_display + """</p>"""
-        else:
-            html += """<p>Current temp: """ + hot_water_display + """</p>"""
-            
-        html += """<p>State changed: """ + temp_hot_time + """</p>
-    </div>
-    
-    <div class="card">
-        <h2>Heater Temperature</h2>"""
+    async def _send_temperature_cards(self, client):
+        """Send temperature cards"""
+        # Hot water temperature
+        hot_water_temp = self.states.get_temperature('hot_water_temp')
+        temp_hot_time = self.states.get_temperature_action_time('hot_water_temp')
         
-        if heater_color:
-            html += """<p style="color: """ + heater_color + """;">Current temp: """ + heater_display + """</p>"""
+        hot_display = self._format_temp(hot_water_temp)
+        
+        html = """<div class="card">
+        <h2>Hot Water line Temperature</h2>
+        <p>Current temp: """ + hot_display + """</p>
+        <p>State changed: """ + temp_hot_time + """</p>
+    </div>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
+        
+        # Heater temperature
+        heater_temp = self.states.get_temperature('heater_temp')
+        temp_heater_time = self.states.get_temperature_action_time('heater_temp')
+        
+        heater_display = self._format_temp(heater_temp)
+        
+        html = """<div class="card">
+        <h2>Heater Temperature</h2>
+        <p>Current temp: """ + heater_display + """</p>
+        <p>State changed: """ + temp_heater_time + """</p>
+    </div>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
+    
+    def _format_temp(self, temp):
+        """Format temperature for display"""
+        if temp == "No temp sensor":
+            return '<span style="color: red;">Sensor not found</span>'
+        elif temp == "ERROR":
+            return '<span style="color: red;">Sensor error</span>'
+        elif temp is None:
+            return '--'
         else:
-            html += """<p>Current temp: """ + heater_display + """</p>"""
-            
-        html += """<p>State changed: """ + temp_heater_time + """</p>
-    </div>
-
-    <div class="card">
+            return str(temp) + " &deg;C"
+    
+    async def _send_system_info(self, client):
+        """Send simplified system info"""
+        mem_free = gc.mem_free() // 1024
+        
+        html = """<div class="card">
         <h2>System Information</h2>
-        <div class="system-info">
-            <div class="system-box">
-                <h3>Memory</h3>
-                <p>Used: """ + str(mem_used_kb) + """ KB</p>
-                <p>Free: """ + str(mem_free_kb) + """ KB</p>
-                <div class="progress-bar">
-                    <div class="progress" style="width: """ + str(mem_percent) + """%">
-                        """ + str(mem_percent) + """%
-                    </div>
-                </div>
-            </div>
-            
-            <div class="system-box">
-                <h3>CPU</h3>
-                <p>Temperature: """ + str(cpu_temp) + """ &deg;C</p>
-            </div>
-            
-            <div class="system-box">
-                <h3>Storage</h3>
-                <p>Used: """ + str(storage_used_kb) + """ KB</p>
-                <p>Free: """ + str(storage_free_kb) + """ KB</p>
-                <div class="progress-bar">
-                    <div class="progress" style="width: """ + str(storage_percent) + """%">
-                        """ + str(storage_percent) + """%
-                    </div>
-                </div>
-            </div>
-            <div class="system-box">
-                <h3>Reboot</h3>
-                <div style="text-align: center;">
-                    <button onclick="if(confirm('Are you sure you want to reboot the device?')) fetch('/api/control?action=reboot', {method: 'POST'}).then(() => alert('Device is rebooting...'));">Reboot Device</button>
-                </div>
-            </div>
-        </div>
+        <p>Free Memory: """ + str(mem_free) + """ KB</p>
+        <button onclick="if(confirm('Reboot device?')) fetch('/api/control?action=reboot', {method: 'POST'})">Reboot</button>
     </div>
+"""
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
     
-    <div class="footer">
+    async def _send_html_footer(self, client):
+        """Send HTML footer"""
+        html = """<div class="footer">
         <p>&copy; 2025 Developer: Vlasiuk Dmitro (AdAvAn)</p>
-        <p>Source code: <a href="https://github.com/AdAvAn/WaterLeak" target="_blank">https://github.com/AdAvAn/WaterLeak</a></p>
+        <p><a href="https://github.com/AdAvAn/WaterLeak">GitHub</a></p>
     </div>
-    
     <script>
-        setTimeout(() => location.reload(), 5000);
+        setTimeout(() => location.reload(), 30000);
     </script>
 </body>
 </html>"""
-        
-        self.send_response(client, 200, "OK", html)
+        client.write(html.encode())
+        await asyncio.sleep_ms(10)
 
-    def handle_status(self, client):
-        # Get temperature data with error handling
-        hot_water_temp = self.states.get_temperature('hot_water_temp')
-        heater_temp = self.states.get_temperature('heater_temp')
+    async def _reboot_device(self):
+        self.logger.info("SERVER: Rebooting device by user request")
+        await asyncio.sleep(1)
+        import machine
+        machine.reset()
         
-        # Convert error states to readable format for API
-        if hot_water_temp == "No temp sensor":
-            hot_water_temp = "sensor_not_found"
-        elif hot_water_temp == "ERROR":
-            hot_water_temp = "sensor_error"
-            
-        if heater_temp == "No temp sensor":
-            heater_temp = "sensor_not_found"
-        elif heater_temp == "ERROR":
-            heater_temp = "sensor_error"
+    def handle_status(self, client):
+        """Simplified status response"""
+        gc.collect()  # Collect before creating response
         
         status = {
             "version": Settings.APP_VERSION,
             "date": DsRTC().get_datetime_iso8601(),
             "valves": {
-                "hot_water_valve": self.states.get_valve_state('hot_water_valve'),
-                "cold_water_valve": self.states.get_valve_state('cold_water_valve')
+                "hot": self.states.get_valve_state('hot_water_valve'),
+                "cold": self.states.get_valve_state('cold_water_valve')
             },
             "leak": {
-                "zone_1": self.states.get_leak_sensor_state('zone_1'),
-                "zone_2": self.states.get_leak_sensor_state('zone_2')
+                "z1": self.states.get_leak_sensor_state('zone_1'),
+                "z2": self.states.get_leak_sensor_state('zone_2')
             },
             "heater": self.states.get_heater_state('heater_power_swith'),
-            "temperature": {
-                "hot_water": hot_water_temp,
-                "heater": heater_temp
+            "temp": {
+                "hot": str(self.states.get_temperature('hot_water_temp')),
+                "heater": str(self.states.get_temperature('heater_temp'))
             },
-            "system": self.get_system_info()
+            "mem_free": gc.mem_free()
         }
-        self.send_response(client, 200, "OK", json.dumps(status), "application/json")
+        
+        response = json.dumps(status)
+        self.send_response(client, 200, "OK", response, "application/json")
         
     def handle_control(self, client, params):
+        gc.collect()
+        
         action = params.get('action')
         device = params.get('device')
         result = {"success": False, "message": "Unknown action"}
@@ -431,14 +397,14 @@ class SimpleServer:
                 
             elif action == "toggle_heater" and device == "heater_power_swith" and self.heater_switch:
                 self.heater_switch.toggle()
-                result = {"success": True, "message": "Toggled heater power"}
+                result = {"success": True, "message": "Toggled heater"}
                 
             elif action == "clear_alarm":
                 self.leak_sensors.clear()
                 result = {"success": True, "message": "Alarm cleared"}
 
             elif action == "reboot":
-                result = {"success": True, "message": "Rebooting device..."}
+                result = {"success": True, "message": "Rebooting..."}
                 self.send_response(client, 200, "OK", json.dumps(result), "application/json")
                 asyncio.create_task(self._reboot_device())
                 return
@@ -446,49 +412,5 @@ class SimpleServer:
             self.send_response(client, 200, "OK", json.dumps(result), "application/json")
         except Exception as e:
             self.logger.error("SERVER: Control error: " + str(e))
-            self.send_response(client, 500, "Internal Server Error", json.dumps({"error": str(e)}), "application/json")
-            
-    def get_system_info(self):
-        import gc
-        import machine
-        import os
-        
-        # Get memory info
-        mem_free = gc.mem_free()
-        mem_alloc = gc.mem_alloc()
-        total_mem = mem_free + mem_alloc
-        
-        # Get CPU temperature (only available on Pico)
-        try:
-            cpu_temp = machine.ADC(4).read_u16() * 3.3 / 65535
-            # Convert to celsius
-            cpu_temp = 27 - (cpu_temp - 0.706) / 0.001721
-            cpu_temp = round(cpu_temp, 1)
-        except:
-            cpu_temp = "N/A"
-        
-        # Get filesystem info
-        try:
-            fs_stat = os.statvfs('/')
-            fs_size = fs_stat[0] * fs_stat[2]  # block size * total blocks
-            fs_free = fs_stat[0] * fs_stat[3]  # block size * free blocks
-            fs_used = fs_size - fs_free
-            fs_percent = round((fs_used / fs_size) * 100, 1)
-        except:
-            fs_size = fs_free = fs_used = fs_percent = "N/A"
-        
-        return {
-            "memory": {
-                "free": mem_free,
-                "used": mem_alloc,
-                "total": total_mem,
-                "percent_used": round((mem_alloc / total_mem) * 100, 1)
-            },
-            "cpu_temp": cpu_temp,
-            "filesystem": {
-                "total": fs_size,
-                "free": fs_free,
-                "used": fs_used,
-                "percent_used": fs_percent
-            }
-        }
+            error_response = json.dumps({"error": str(e)})
+            self.send_response(client, 500, "Internal Server Error", error_response, "application/json")

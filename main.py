@@ -1,8 +1,10 @@
 import gc
 import uasyncio as asyncio
 from Logging.AppLogger import AppLogger
+import WebServer.SimpleServer as WebServer
 import sys
 import time
+import machine
 
 class Main:
     def __init__(self):
@@ -179,30 +181,39 @@ class Main:
             self.logger.info("Main: Starting heater control button...")
             self.heater_button.start()
             
-        # Initialize and start the web server only if WiFi is connected
         if self.wifiManager.is_wifi_connected():
-            try:
-                self._update_init_status("Start web srv...")
-                self.logger.info("Main: Starting web server...")
-                import WebServer.SimpleServer as WebServer
-        
-                self._web_server = WebServer.SimpleServer(
-                    states=self.states,
-                    valves=self.water_line_valves,
-                    leak_sensors=self.leak_sensors,
-                    heater_switch=self.heater_swith
-                )
-                
-                gc.collect()
-                
-                if self._web_server.start():
-                    self.logger.info("Main: Web server started successfully")
-                else:
-                    self.logger.error("Main: Web server failed to start")
+            # Prepare memory before web server initialization
+            if self._prepare_for_webserver():
+                try:
+                    self._update_init_status("Start web srv...")
+                    self.logger.info("Main: Starting web server...")
+            
+                    self._web_server = WebServer.SimpleServer(
+                        states=self.states,
+                        valves=self.water_line_valves,
+                        leak_sensors=self.leak_sensors,
+                        heater_switch=self.heater_swith
+                    )
                     
-            except Exception as e:
-                self.logger.error(f"Main: Failed to initialize web server: {e}")
-                self._handle_initialization_error("WebServer Err", "Check server code!")
+                    gc.collect()
+                    
+                    if self._web_server.start():
+                        self.logger.info("Main: Web server started successfully")
+                    else:
+                        self.logger.error("Main: Web server failed to start")
+                        
+                except MemoryError as e:
+                    self.logger.error(f"Main: Not enough memory for web server: {e}")
+                    self._web_server = None
+                    gc.collect()
+                    # Continue without web server
+                    
+                except Exception as e:
+                    self.logger.error(f"Main: Failed to initialize web server: {e}")
+                    self._handle_initialization_error("WebServer Err", "Check server!")
+            else:
+                self.logger.warning("Main: Not enough memory for web server, continuing without it")
+                self._web_server = None
         else:
             self.logger.warning("Main: WiFi not connected, skipping web server")
 
@@ -331,32 +342,75 @@ class Main:
             if gc.mem_free() < 10000:  # If free memory is less than 10KB
                 gc.collect()
         
+
     async def _memory_watchdog(self):
-        """Memory monitoring with forced garbage collection"""
+        """Enhanced memory monitoring with forced garbage collection"""
         while True:
             try:
-                import gc
                 free_mem = gc.mem_free()
-                if free_mem < 8192: # Less than 8KB free memory
-                    self.logger.warning(f"Low memory: {free_mem} bytes, forcing GC")
+                
+                # Log memory status periodically
+                if free_mem < 20000:  # Less than 20KB
+                    self.logger.warning(f"Low memory warning: {free_mem} bytes free")
+                
+                # Force GC at different thresholds
+                if free_mem < 15000:  # Less than 15KB
+                    self.logger.info(f"Memory cleanup: {free_mem} bytes free, forcing GC")
                     gc.collect()
                     
-                    # If there is still not enough memory - reboot
-                    if gc.mem_free() < 4096:
-                        self.logger.critical("Critical memory shortage, rebooting...")
-                        # Try to save states before reboot
-                        try:
-                            await self.cleanup()
-                        except:
-                            pass
-                        import machine
-                        machine.reset()
-                        
-                await asyncio.sleep(10)  # Check every 10 seconds
+                    # Check improvement
+                    new_free = gc.mem_free()
+                    self.logger.info(f"Memory after GC: {new_free} bytes free (recovered {new_free - free_mem} bytes)")
+                    
+                # Critical memory - more aggressive collection
+                if free_mem < 10000:  # Less than 10KB
+                    self.logger.warning("Critical memory, aggressive GC")
+                    # Multiple collection passes can help
+                    for _ in range(3):
+                        gc.collect()
+                        await asyncio.sleep_ms(100)
+                    
+                # Emergency reboot threshold
+                if gc.mem_free() < 5000:  # Less than 5KB
+                    self.logger.critical("Emergency memory shortage, preparing reboot...")
+                    # Try to save critical states
+                    try:
+                        await self.states.force_write()
+                    except:
+                        pass
+                    
+                    await asyncio.sleep(2)
+                    machine.reset()
+                    
+                # Regular check interval
+                await asyncio.sleep(5)
+                
             except Exception as e:
                 self.logger.error(f"Memory watchdog error: {e}")
-                await asyncio.sleep(30)
+                await asyncio.sleep(10)
 
+
+    def _prepare_for_webserver(self):
+        """Prepare memory for web server initialization"""
+        self.logger.info("Preparing memory for web server...")
+        
+        # Force multiple GC passes
+        for _ in range(5):
+            gc.collect()
+        
+        free_before = gc.mem_free()
+        
+        # Try to free up some memory by clearing unnecessary references
+        if hasattr(self, 'starting_screen'):
+            self.starting_screen = None
+        
+        # Clear any cached data that's not critical
+        gc.collect()
+        
+        free_after = gc.mem_free()
+        self.logger.info(f"Memory preparation complete: {free_after} bytes free (gained {free_after - free_before} bytes)")
+        
+        return free_after > 20000  # Return True if we have enough memory
 
 # Create an instance of the Main class and run it
 if __name__ == "__main__":
@@ -375,7 +429,6 @@ if __name__ == "__main__":
                 asyncio.run(main.cleanup())
             except:
                 pass
-        import machine
         machine.reset()
     except Exception as e:
         print(f"Fatal error: {e}")
@@ -384,5 +437,4 @@ if __name__ == "__main__":
                 asyncio.run(main.cleanup())
             except:
                 pass
-        import machine
         machine.reset()
